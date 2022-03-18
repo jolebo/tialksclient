@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Client WEB</title>
+</head>
+<body>
+	<div class="content-table">
+		<a href="javascript:;" onclick="showForm()">Tambah</a>
+		<table id="table_user" border="1" style="width: 100%;">
+			<thead>
+				<tr>
+					<th>No</th>
+					<th>Nama</th>
+					<th>Alamat</th>
+					<th>Foto</th>
+					<th>Aksi</th>
+				</tr>
+			</thead>
+			<tbody></tbody>
+		</table>
+	</div>
+	<div class="content-form" style="display: none;">
+		<form action="javascript:saveData('form-user');" name="form-user">
+			<table>
+				<tr>
+					<th>Nama</th>
+					<th>
+						<input type="hidden" name="user_id">
+						<input type="text" name="user_nama" required="">		
+					</th>
+				</tr>
+				<tr>
+					<th>Alamat</th>
+					<th>
+						<input type="text" name="user_alamat" required="">
+					</th>
+				</tr>
+				<tr>
+					<th>Foto</th>
+					<th>
+						<input type="file"" onchange="getBase64Image(this)" required="">
+						<input type="hidden" name="user_photo">
+					</th>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<input type="submit" value="Kirim">
+					</td>
+				</tr>
+			</table>
+		</form>
+	</div>
+	
+</body>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+	var BASE_URL = 'http://localhost:3000/'; // ganti sesuai dengan url
+	var BUCKET_NAME = 'https://clientbuckettia.s3.us-east-1.amazonaws.com/'; // ganti sesuai dengan bucket name
+	$(()=>{
+		loadTable();
+	})
+
+	function loadTable(){
+		$.ajax({
+			url: BASE_URL+'users',
+			type: "GET",
+			success: function(res){
+				$(`#table_user tbody`).html('');
+				var html = '';
+				if(res.length > 0){
+					$.each(res,(i,v)=>{
+						html += `
+							<tr>
+								<td>${(i+1)}</td>
+								<td>${v.user_nama}</td>
+								<td>${v.user_alamat}</td>
+								<td><img src="${BUCKET_NAME}${v.user_photo}" width="50px"></td>
+								<td><a href="javascript:;" onclick="updateData('${v.user_id}')">Ubah</a> | <a href="javascript:;" onclick="deleteData('${v.user_id}')">Hapus</a></td>
+							</tr>
+						`;
+					})
+				}else{
+					html = `
+						<tr>
+							<td colspan="5" align="center"> Data tidak ditemukan</td>
+						</tr>
+					`;
+				}
+				$(`#table_user tbody`).html(html);
+			}
+		})
+	}
+
+	function deleteData(id){
+		if(confirm('Yakin ingin menghapus data ini?')){
+			$.ajax({
+				url: BASE_URL+'deleteUsers/'+id,
+				type: 'POST',
+				success: function(res){
+					alert(res.message);
+					loadTable();
+				}
+			})
+		}
+	}
+
+	function showForm(reverse = false){
+		if(reverse){
+			$('.content-table').show();
+			$('.content-form').hide();
+		}else{
+			$('.content-table').hide();
+			$('.content-form').show();
+		}
+	}
+
+	function updateData(id){
+		showForm();
+		$.ajax({
+			url: BASE_URL+'users/'+id,
+			type: 'GET',
+			success: function(res) {
+				$.each(res[0],(i,v)=>{
+					$(`[name="${i}"]`).val(v);
+				})
+				$(`[name="user_photo"]`).val('');
+
+			}
+		});
+	}
+
+	function saveData(table){
+		
+		var id = $('[name="user_id"]').val();
+		$.ajax({
+			url: BASE_URL+ (id ? 'updateUsers/'+id : 'insertUsers'),
+			type: "POST",
+			data: $(`[name="${table}"]`).serialize(),
+			success: function(res) {
+				alert(res.message);
+				$(`[name="${table}"]`).trigger('reset')
+				showForm(true);
+				loadTable();
+			}
+		})
+	}
+
+	function getBase64Image(el){
+		var file = el.files[0];
+		var reader = new FileReader();
+		reader.readAsDataURL(file);
+		reader.onloadend = function(event) {
+			var base64data = reader.result;
+			$(`[name="user_photo"]`).val(base64data);
+		}
+	}
+</script>
+</html>
